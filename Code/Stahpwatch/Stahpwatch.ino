@@ -1,13 +1,32 @@
-#define IN1  8
-#define IN2  9
-#define IN3  10
-#define IN4  11
+#define IN1  11
+#define IN2  12
+#define IN3  13
+#define IN4  A0
 int Steps = 0;
 boolean Direction = true;
 
 const int STEPPERMOTORSTEPS = 4096;
 const int CLOCKSTEPS = 60;
 
+// {RedPin, BluePin, GreenPin} -1 if no pin is attached
+int ledArrayOne[] = {2, 3, -1};
+int ledArrayTwo[] = {-1, 4, -1};
+int ledArrayThree[] = {-1, 5, 6};
+int ledArrayFour[] = {-1, -1, 7};
+int ledArrayFive[] = {8, -1, 9};
+int ledArraySix[] = {10, -1, -1};
+
+
+int pinkCode[] = {1, 1, 0};
+int blueCode[] = {0, 1, 0};
+int aquaCode[] = {0, 1, 1};
+int greenCode[] = {0, 0, 1};
+int purpleCode[] = {1, 0, 1};
+int redCode[] = {1, 0, 0};
+int clearCode[] = {0, 0, 0};
+
+int lightingPhase = 0;
+int clockHandMode = 1;
 float startTime;
 int motorPosition = 0;
 // The ratio of clock step to motor step.
@@ -28,6 +47,7 @@ void setup() {
   pinMode(IN2, OUTPUT); 
   pinMode(IN3, OUTPUT); 
   pinMode(IN4, OUTPUT); 
+  lightNextPhase();
   startTime = millis();
 }
 
@@ -42,23 +62,72 @@ void logicOperation(){
 }
 
 void hardwareOperation(){
-  if(clockTimeMinute != actualTimeMinute){
-    clockhandOperation();
-    clockTimeMinute = actualTimeMinute;
+  clockhandOperation();
+  lightingOperation();
+}
+
+void clockhandOperation(){
+  if(clockHandMode == 0){    
+    if(clockTime != actualTime){
+      int motorStepTarget = (int)(getTimeDifference() * motorToClockStep);
+      takeSteps(motorStepTarget, true);
+      clockTime = actualTime;
+    }
   }
+  if(clockHandMode == 1){
+    if(clockTimeMinute != actualTimeMinute){
+      int motorStepTarget = (int)(getTimeDifferenceMinute() * motorToClockStep);
+      takeSteps(motorStepTarget, true);
+      clockTimeMinute = actualTimeMinute;
+    }
+  }
+}
+
+void lightingOperation(){
   if(clockTime != actualTime){
-    lightingOperation();
+    Serial.println("new time");
+    if(((clockTime % 10) - (actualTime % 10)) > 0){
+      Serial.println("light phase");
+      lightNextPhase();
+    }
     clockTime = actualTime;
   }
 }
 
-void clockhandOperation(){
-  int motorStepTarget = (int)(getTimeDifferenceMinute() * motorToClockStep);
-  takeSteps(motorStepTarget, true);
+void lightNextPhase(){
+  switch(lightingPhase){
+    case 0:
+      clearAllLedArrays();
+      setColor(pinkCode, ledArrayOne);
+      break;
+    case 1:
+      setColor(blueCode, ledArrayTwo);
+      break;
+    case 2:
+      setColor(aquaCode, ledArrayThree);
+      break;
+    case 3:
+      setColor(greenCode, ledArrayFour);
+      break;
+    case 4:
+      setColor(purpleCode, ledArrayFive);
+      break;
+    case 5:
+      setColor(redCode, ledArraySix);
+      break;
+  }
+  lightingPhase++;
+  if(lightingPhase > 5)
+    lightingPhase = 0;
 }
 
-void lightingOperation(){
-  
+void clearAllLedArrays(){
+  setColor(clearCode, ledArrayOne);
+  setColor(clearCode, ledArrayTwo);
+  setColor(clearCode, ledArrayThree);
+  setColor(clearCode, ledArrayFour);
+  setColor(clearCode, ledArrayFive);
+  setColor(clearCode, ledArraySix);
 }
 
 int secondsSinceStartTime(){
@@ -77,6 +146,13 @@ int getTimeDifferenceMinute(){
     return actualTimeMinute - clockTimeMinute;
   else 
     return (actualTimeMinute + 60) - clockTimeMinute;
+}
+
+void setColor(int colorCode[], int pins[])
+{
+  for(int i = 0; i < sizeof(pins)+1; i++){
+    digitalWrite(pins[i], colorCode[i]);
+  }
 }
 
 void takeSteps(int stepAmount, boolean direction){
