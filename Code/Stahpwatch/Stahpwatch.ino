@@ -26,7 +26,7 @@ int redCode[] = {1, 0, 0};
 int clearCode[] = {0, 0, 0};
 
 int lightingPhase = 0;
-int mode = 1;
+int mode = 0;
 float startTime;
 int motorPosition = 0;
 // The ratio of clock step to motor step.
@@ -47,13 +47,37 @@ void setup() {
   pinMode(IN2, OUTPUT); 
   pinMode(IN3, OUTPUT); 
   pinMode(IN4, OUTPUT); 
+  pinMode(A1, INPUT);
   lightNextPhase();
   startTime = millis();
 }
 
 void loop() {
+  buttonOperation();
   logicOperation();
   hardwareOperation();
+}
+
+void buttonOperation(){
+  if(digitalRead(A1) == HIGH){
+    clearAllLedArrays();
+    delay(1000);
+    if(digitalRead(A1) == HIGH){
+      while(digitalRead(A1) == HIGH){
+        takeSteps(1, true);
+      }
+      motorPosition = 0;
+    }
+    reset();
+    switch(mode){
+      case 0:
+        mode = 1;
+        break;
+      case 1:
+        mode = 0;
+        break;
+    }
+  }
 }
 
 void logicOperation(){
@@ -87,7 +111,6 @@ void clockhandOperation(){
 void lightingOperation(){
   if(clockTime != actualTime){
     if(((clockTime % 10) - (actualTime % 10)) > 0){
-      Serial.println("light phase");
       lightNextPhase();
     }
     if(mode == 1)
@@ -132,9 +155,13 @@ void clearAllLedArrays(){
 }
 
 void reset(){
-  if(motorPosition != 0)
-    takeSteps(STEPPERMOTORSTEPS - motorPosition, true);
-  clearAllLedArrays();
+  if(motorPosition != 0){
+    if(motorPosition > (STEPPERMOTORSTEPS / 2))
+      takeSteps(STEPPERMOTORSTEPS - motorPosition, true);
+    else
+      takeSteps(motorPosition, false);
+  }
+  motorPosition = 0;
   lightingPhase = 0;
   lightNextPhase();
   startTime = millis();
@@ -142,7 +169,6 @@ void reset(){
   actualTime = 0;
   clockTimeMinute = 0;
   actualTimeMinute = 0;
-  Serial.println("B");
 }
 
 int secondsSinceStartTime(){
