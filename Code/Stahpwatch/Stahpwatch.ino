@@ -40,6 +40,7 @@ int clockTimeMinute = 0;
 // The actual time that should be represented on the timer in minutes.
 int actualTimeMinute = 0;
 
+boolean running = false;
 
 void setup() {
   Serial.begin(9600);
@@ -48,34 +49,42 @@ void setup() {
   pinMode(IN3, OUTPUT); 
   pinMode(IN4, OUTPUT); 
   pinMode(A1, INPUT);
-  lightNextPhase();
   startTime = millis();
 }
 
 void loop() {
   buttonOperation();
-  logicOperation();
-  hardwareOperation();
+  if(running){
+    logicOperation();
+    hardwareOperation();
+  }
 }
 
 void buttonOperation(){
-  if(digitalRead(A1) == HIGH){
-    clearAllLedArrays();
-    delay(1000);
+  if(running){
     if(digitalRead(A1) == HIGH){
-      while(digitalRead(A1) == HIGH){
-        takeSteps(1, true);
+      clearAllLedArrays();
+      delay(1000);
+      if(digitalRead(A1) == HIGH){
+        while(digitalRead(A1) == HIGH){
+          takeSteps(1, true);
+        }
+        motorPosition = 0;
       }
-      motorPosition = 0;
+      shutdown();
+      switch(mode){
+        case 0:
+          mode = 1;
+          break;
+        case 1:
+          mode = 0;
+          break;
+      }
     }
-    reset();
-    switch(mode){
-      case 0:
-        mode = 1;
-        break;
-      case 1:
-        mode = 0;
-        break;
+  } else {
+    if(digitalRead(A1) == HIGH){
+      start();
+      delay(1000);
     }
   }
 }
@@ -155,13 +164,7 @@ void clearAllLedArrays(){
 }
 
 void reset(){
-  if(motorPosition != 0){
-    if(motorPosition > (STEPPERMOTORSTEPS / 2))
-      takeSteps(STEPPERMOTORSTEPS - motorPosition, true);
-    else
-      takeSteps(motorPosition, false);
-  }
-  motorPosition = 0;
+  moveMotorToOrigin();
   lightingPhase = 0;
   lightNextPhase();
   startTime = millis();
@@ -169,6 +172,26 @@ void reset(){
   actualTime = 0;
   clockTimeMinute = 0;
   actualTimeMinute = 0;
+}
+
+void moveMotorToOrigin(){
+  if(motorPosition != 0){
+    if(motorPosition > (STEPPERMOTORSTEPS / 2))
+      takeSteps(STEPPERMOTORSTEPS - motorPosition, true);
+    else
+      takeSteps(motorPosition, false);
+  }
+  motorPosition = 0;
+}
+
+void shutdown(){
+  running = false;
+  moveMotorToOrigin();
+}
+
+void start(){
+  running = true;
+  reset();
 }
 
 int secondsSinceStartTime(){
